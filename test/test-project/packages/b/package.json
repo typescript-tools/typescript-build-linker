@@ -1,0 +1,11 @@
+{
+    "name": "@typescript-tools/b",
+    "version": "1.0.0",
+    "description": "Sample package b",
+    "main": "index.js",
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@typescript-tools/a": "^1.0.0"
+    }
+}

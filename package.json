@@ -44,7 +44,12 @@
     "url": "https://github.com/typescript-tools/typescript-build-linker/issues"
   },
   "homepage": "https://github.com/typescript-tools/typescript-build-linker",
-  "dependencies": {},
+  "dependencies": {
+    "@types/docopt": "^0.6.31",
+    "docopt": "^0.6.2",
+    "globby": "^9.2.0",
+    "just-compose": "^1.1.0"
+  },
   "devDependencies": {
     "@types/node": "^10.14.4",
     "@typescript-eslint/eslint-plugin": "^1.7.0",

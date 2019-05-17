@@ -5,6 +5,9 @@
 export const prop = (property: string) => (obj: any) =>
     obj[property]
 
+export const safeProp = (property: string) => (obj: any) =>
+    obj[property] || {}
+
 export const trace = (label: string) => (x: any) => {
     console.log(`${label}: ${JSON.stringify(x)}`)
     return x

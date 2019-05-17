@@ -36,6 +36,8 @@ interface CommandLineOptions {
     [key: string]: string;
 }
 
+const prettyJSONStringify = (obj: any): string =>
+    JSON.stringify(obj, null, 4)
 
 const parseOptions = (): CommandLineOptions =>
     docopt(docstring, {
@@ -91,6 +93,7 @@ const zipWithPackageDirectory = compose(
 
 const lernaPackageReferences = compose(
     lernaRepositoryPackagesGlob,
+    trace('lerna repository packages glob'),
     internalPackageDependencies,
     map(map(internalPackagePath(lernaRepositoryPackagesGlob()))),
     zipWithPackageDirectory
@@ -99,11 +102,10 @@ const lernaPackageReferences = compose(
 const linkDependentPackages = compose(
     lernaPackageReferences,
     // trace('lerna package references'),
-    map(writeReferences)
+    map(writeReferences),
+    prettyJSONStringify,
+    console.log.bind(null)
 )
-
-// linkDependentPackages()
-// TODO: link from top-down
 
 const pathInRepository = (file: File): File =>
     path.relative(absoluteRepositoryRoot(), file)
@@ -112,16 +114,18 @@ const packagesInRepository = compose(
     lernaRepositoryPackagesGlob,
     packageDirectories,
     map(pathInRepository),
-    trace('packages in repository')
+    // trace('packages in repository')
 )
 
-const prettyJSONStringify = (obj: any): string =>
-    JSON.stringify(obj, null, 4)
 
-compose(
+const linkChildrenPackages = compose(
     packagesInRepository,
     directoriesContainingPackages,
     map(writeParentTsconfig(repositoryRoot(), packagesInRepository())),
     prettyJSONStringify,
     console.log.bind(null)
-)()
+)
+
+
+linkDependentPackages()
+linkChildrenPackages()

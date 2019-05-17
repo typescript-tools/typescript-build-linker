@@ -15,6 +15,7 @@ import {
     map,
     filter,
     prop,
+    safeProp,
     trace
 } from './functions'
 
@@ -65,7 +66,7 @@ export const packageNames = compose(
 // jsonDependencies :: File => string[]
 const jsonDependencies = compose(
     readJson,
-    prop('dependencies'),
+    safeProp('dependencies'),
     Object.keys.bind(null)
 )
 
@@ -125,12 +126,13 @@ const addReferencesToTsconfig = ([pkg, references]: [string, Reference[]]) => {
             {references: references}
         )
     )
+    return [pkg, references]
 }
 
 // writeReferences :: [string, File[]] => ??
 export const writeReferences = compose(
     toReferences,
-    trace('as References'),
+    // trace('as References'),
     addReferencesToTsconfig
 )
 

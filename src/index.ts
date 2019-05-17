@@ -1,15 +1,27 @@
 import * as path from 'path'
 import { docopt } from 'docopt'
+import zip from '@strong-roots-capital/zip'
 
 import {
+    id,
+    map,
+    prop,
+    trace
+} from './functions'
+
+import {
+    File,
     readJson,
     packageNames,
     packageJsons,
-    internalPackageDependencies
+    internalPackageDependencies,
+    internalPackagePath,
+    writeReferences
 } from './typescript-build-linker'
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const compose = require('just-compose')
+
 
 // TODO: probably add a [--dry-run] option
 const docstring = `
@@ -29,10 +41,6 @@ const parseOptions = (): CommandLineOptions =>
         exit: true
     })
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/promise-function-async, @typescript-eslint/explicit-function-return-type
-const prop = (property: string) => (obj: any): any =>
-    obj[property]
-
 const repositoryRoot = compose(
     parseOptions,
     prop('<repository>')
@@ -41,24 +49,45 @@ const repositoryRoot = compose(
 const repositoryFile = (filename: string): string =>
     path.join(repositoryRoot(), filename)
 
+const lernaJson = () =>
+    repositoryFile('lerna.json')
 
-// lernaPackagesGlob :: string -> string
+
+// lernaPackagesGlob :: File -> string
 const lernaPackagesGlob = compose(
+    lernaJson,
     readJson,
     prop('packages'),
-    (packages: string[]) => packages.map(repositoryFile)
+    map(repositoryFile),
+    // trace('lernaPackagesGlob')
 )
 
-// lernaPackageNames :: string -> string[]
+// lernaPackageNames :: File -> string[]
 const lernaPackageNames = compose(
     lernaPackagesGlob,
-    packageNames
+    packageNames,
+    // trace('lernaPackagenames')
+)
+
+const zipWithPackageDirectory = compose(
+    lernaPackagesGlob,
+    packageJsons,
+    map(path.dirname),
+    zip
+)()
+
+const lernaPackageReferences = compose(
+    lernaPackagesGlob,
+    internalPackageDependencies,
+    map(map(internalPackagePath(lernaPackagesGlob()))),
+    zipWithPackageDirectory
 )
 
 
-// RESUME: link internal dependencies together
+// TODO: link from top-down
 compose(
-    lernaPackagesGlob,
-    internalPackageDependencies,
-    console.log.bind(null)
-)(repositoryFile('lerna.json'))
+    lernaPackageReferences,
+    // trace('lerna package references'),
+    map(writeReferences),
+    // console.log.bind(null)
+)()

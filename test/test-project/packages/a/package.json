@@ -1,7 +1,7 @@
 {
     "name": "@typescript-tools/a",
     "version": "1.0.0",
-    "description": "Sample package b",
+    "description": "Sample package a",
     "main": "index.js",
     "author": "",
     "license": "ISC",

@@ -8,7 +8,7 @@ module.exports = {
     plugins: ['@typescript-eslint'],
     extends: ['plugin:@typescript-eslint/recommended'],
     rules: {
-        '@typescript-eslint/explicit-function-return-type': ['warn', {allowExpressions: true}],
+        '@typescript-eslint/explicit-function-return-type': ['off', {allowExpressions: true}],
         '@typescript-eslint/interface-name-prefix': ['warn', 'never'],
         'no-extra-parens': 'off',
         '@typescript-eslint/no-extra-parens': ['error'],
@@ -28,12 +28,12 @@ module.exports = {
         '@typescript-eslint/prefer-includes': 'warn',
         '@typescript-eslint/prefer-namespace-keyword': 'warn',
         '@typescript-eslint/prefer-string-starts-ends-with': 'warn',
-        '@typescript-eslint/promise-function-async': ['error'],
+        '@typescript-eslint/promise-function-async': ['off'],
         '@typescript-eslint/require-array-sort-compare': 'error',
         '@typescript-eslint/restrict-plus-operands': 'warn',
         '@typescript-eslint/unbound-method': ['warn', {ignoreStatic: true}],
         '@typescript-eslint/unified-signatures': 'warn',
-        '@typescript-eslint/no-explicit-any': 'error',
+        '@typescript-eslint/no-explicit-any': 'off',
         // @typescript-eslint/func-call-spacing rule not found?
         // 'func-call-spacing': 'off',
         // '@typescript-eslint/func-call-spacing': ['error'],

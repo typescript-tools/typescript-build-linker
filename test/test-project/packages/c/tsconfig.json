@@ -10,10 +10,5 @@
     ],
     "compilerOptions": {
         "outDir": "./dist"
-    },
-    "references": [
-        {
-            "path": "../a"
-        }
-    ]
+    }
 }

@@ -40,10 +40,17 @@ export const readJson = compose(
 
 // TODO: ensure this doesn't go too deep, e.g. into a package's node_modules/package.json
 // packageNames :: string[] -> string[]
-export const packageJsons = (globs: Glob[]): string[] =>
+export const packageJsons = (globs: Glob[]): File[] =>
     globby.sync(globs)
         .filter(filename => !filename.includes('node_modules'))
         .filter(filename => filename.includes('package.json'))
+
+// packageDirectories :: Glob[] -> File[]
+export const packageDirectories = compose(
+    packageJsons,
+    map(path.dirname)
+)
+
 
 
 // packageNames :: Glob[] -> string[]
@@ -62,7 +69,7 @@ const jsonDependencies = compose(
     Object.keys.bind(null)
 )
 
-const isInternalDependency = (globs: string[]) => (dependency: string): boolean =>
+const isInternalDependency = (globs: Glob[]) => (dependency: string): boolean =>
     packageNames(globs).includes(dependency)
 
 // packageDependencies :: string[] -> string[][]
@@ -71,7 +78,7 @@ export const packageDependencies = compose(
     map(jsonDependencies)
 )
 
-export const internalPackageDependencies = (globs: string[]): File[] =>
+export const internalPackageDependencies = (globs: Glob[]): File[] =>
     packageDependencies(globs)
         .map(filter(isInternalDependency(globs)))
 
@@ -87,7 +94,7 @@ const internalPackages = (glob: Glob[]): { [key: string]: File } =>
 export const internalPackagePath = (glob: Glob[]) => (pkg: string) =>
     internalPackages(glob)[pkg]
 
-const toReferences = ([pkg, references]: [string, File[]]): [string, Reference[]] =>
+const toReferences = ([pkg, references]: [File, File[]]): [File, Reference[]] =>
     [pkg, references.map(reference => ({
         path: path.relative(path.resolve(pkg), path.resolve(reference))
     }))]
@@ -126,3 +133,74 @@ export const writeReferences = compose(
     trace('as References'),
     addReferencesToTsconfig
 )
+
+
+
+const flatten = <T = any>(array: T[][]): T[] =>
+    array.flat()
+
+const uniquify = <T = any>(array: T[]): T[] =>
+    array.filter((element: T, position: number) => array.indexOf(element) === position)
+
+
+// directoriesContainingPackages :: File[] -> File[]
+export const directoriesContainingPackages = compose(
+    map(
+        (pkg: File) =>
+            path.dirname(pkg)
+                .split(path.sep)
+                .reduce((directories: File[], dir: File) =>
+                    directories.concat(
+                        path.join(directories[directories.length-1], dir)
+                    ), [''])
+                .filter(dir => dir !== '')
+    ),
+    flatten,
+    uniquify
+)
+
+const containedInDirectory = (dir: File) => (pkg: File): boolean =>
+    pkg.startsWith(dir)
+
+const split = (splitter: string) => (data: string): string[] =>
+    data.split(splitter)
+
+const isNotEmpty = (str: string): boolean =>
+    str.length !== 0
+
+const unsafeHead = <T = any>(array: T[]): T =>
+    array[0]
+
+const childrenDirectories = (dir: File) => (packages: File[]): File[] =>
+    compose(
+        filter(containedInDirectory(dir)),
+        map(pkg => pkg.replace(dir + path.sep, '')),
+        map(split(path.sep)),
+        map(unsafeHead),
+        flatten,
+        filter(isNotEmpty)
+    ) (packages)
+
+interface ParentReference {
+    files: string[];
+    references: Reference[];
+}
+
+const toParentReferences = ([pkg, references]: [File, File[]]): [File, ParentReference] =>
+    [pkg, {
+        files: [],
+        references: references
+            .map(reference => ({
+                path: reference
+            }))}]
+
+const writeParentReferences = (repositoryRoot: string) => ([dir, json]: [File, ParentReference]) => {
+    writeJson(path.join(repositoryRoot, dir, 'tsconfig.json'), json)
+    return [dir, json]
+}
+
+export const writeParentTsconfig = (repositoryRoot: string, packages: File[]) => (dir: File) =>
+    compose(
+        toParentReferences,
+        writeParentReferences(repositoryRoot)
+    )([dir, childrenDirectories(dir)(packages)])

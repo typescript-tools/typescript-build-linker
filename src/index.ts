@@ -14,9 +14,12 @@ import {
     readJson,
     packageNames,
     packageJsons,
+    packageDirectories,
     internalPackageDependencies,
     internalPackagePath,
-    writeReferences
+    writeReferences,
+    directoriesContainingPackages,
+    writeParentTsconfig
 } from './typescript-build-linker'
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -46,48 +49,79 @@ const repositoryRoot = compose(
     prop('<repository>')
 )
 
+const absoluteRepositoryRoot = compose(
+    repositoryRoot,
+    path.resolve
+)
+
 const repositoryFile = (filename: string): string =>
     path.join(repositoryRoot(), filename)
 
 const lernaJson = () =>
     repositoryFile('lerna.json')
 
-
-// lernaPackagesGlob :: File -> string
+// lernaPackagesGlob :: File -> string[]
 const lernaPackagesGlob = compose(
     lernaJson,
     readJson,
     prop('packages'),
+    // trace('lernaPackagesGlob')
+)
+
+// lernaRepositoryPackagesGlob :: File -> string[]
+const lernaRepositoryPackagesGlob = compose(
+    lernaPackagesGlob,
     map(repositoryFile),
     // trace('lernaPackagesGlob')
 )
 
 // lernaPackageNames :: File -> string[]
 const lernaPackageNames = compose(
-    lernaPackagesGlob,
+    lernaRepositoryPackagesGlob,
     packageNames,
     // trace('lernaPackagenames')
 )
 
 const zipWithPackageDirectory = compose(
-    lernaPackagesGlob,
+    lernaRepositoryPackagesGlob,
     packageJsons,
     map(path.dirname),
     zip
 )()
 
 const lernaPackageReferences = compose(
-    lernaPackagesGlob,
+    lernaRepositoryPackagesGlob,
     internalPackageDependencies,
-    map(map(internalPackagePath(lernaPackagesGlob()))),
+    map(map(internalPackagePath(lernaRepositoryPackagesGlob()))),
     zipWithPackageDirectory
 )
 
-
-// TODO: link from top-down
-compose(
+const linkDependentPackages = compose(
     lernaPackageReferences,
     // trace('lerna package references'),
-    map(writeReferences),
-    // console.log.bind(null)
+    map(writeReferences)
+)
+
+// linkDependentPackages()
+// TODO: link from top-down
+
+const pathInRepository = (file: File): File =>
+    path.relative(absoluteRepositoryRoot(), file)
+
+const packagesInRepository = compose(
+    lernaRepositoryPackagesGlob,
+    packageDirectories,
+    map(pathInRepository),
+    trace('packages in repository')
+)
+
+const prettyJSONStringify = (obj: any): string =>
+    JSON.stringify(obj, null, 4)
+
+compose(
+    packagesInRepository,
+    directoriesContainingPackages,
+    map(writeParentTsconfig(repositoryRoot(), packagesInRepository())),
+    prettyJSONStringify,
+    console.log.bind(null)
 )()

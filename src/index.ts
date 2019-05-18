@@ -7,12 +7,12 @@ import {
     id,
     map,
     prop,
+    invoke,
     trace,
     traceDebugger
 } from './functional-programming'
 
 import {
-    File,
     readJson,
     packageNames,
     packageJsons,
@@ -22,18 +22,22 @@ import {
     toPackageReferences,
     writePackageReferences,
     directoriesContainingPackages,
-    writeParentTsconfig
+    writeParentReferences,
+    toParentReferences
 } from './typescript-build-linker'
 
 import {
-    negate,
+    join,
     JSONstringifyPretty
 } from './utils'
+
+import {
+    File
+} from './types'
 
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const compose = require('just-compose')
-const Either = require('data.either')
 /* eslint-enable @typescript-eslint/no-var-requires */
 
 const debug = traceDebugger(require('debug')('tsl'))
@@ -50,119 +54,109 @@ interface CommandLineOptions {
     [key: string]: string;
 }
 
-const asEither = (errorMessage: string) => (value: any) =>
-    value ? Either.Right(value) : Either.Left(errorMessage)
-
 // parseOptions :: CommandLineOptions
 const parseOptions = memoize((): CommandLineOptions =>
     docopt(docstring(), {
         help: true,
         version: null,
-        exit: true
-    }))
+        exit: true}))
 
 // isDryRun :: Boolean
-const isDryRun = (): boolean =>
+const isDryRun = // (): boolean =>
+    memoize(
+        compose(
+            parseOptions,
+            prop('--dry-run'),
+            debug('is dry run')))
+
+// repositoryRoot :: string
+const repositoryRoot =
     compose(
         parseOptions,
-        prop('--dry-run'),
-        // negate,
-        // asEither('Use enabled `--dry-run` option')
-    )()
+        prop('<repository>'))
 
-
-const repositoryRoot = (): string =>
+// absoluteRepositoryRoot :: string
+const absoluteRepositoryRoot =
     compose(
-        parseOptions,
-        prop('<repository>')
-    )()
+        repositoryRoot,
+        path.resolve)
 
-const absoluteRepositoryRoot = compose(
-    repositoryRoot,
-    path.resolve
-)
+// repositoryFile :: string -> string
+const repositoryFile =
+    join(repositoryRoot())
 
-const repositoryFile = (filename: string): string =>
-    path.join(repositoryRoot(), filename)
-
+// lernaJson :: string
 const lernaJson = () =>
     repositoryFile('lerna.json')
 
 
-// lernaPackagesGlob :: File -> string[]
-const lernaPackagesGlob = memoize(compose(
-    lernaJson,
-    readJson,
-    prop('packages'),
-    map(repositoryFile),
-    debug('lerna packages glob')
-))
+// lernaPackagesGlob :: File -> Glob[]
+const lernaPackagesGlob =
+    memoize(
+        compose(
+            lernaJson,
+            readJson,
+            prop('packages'),
+            map(repositoryFile),
+            debug('lerna packages glob')))
 
-// lernaPackageNames :: File -> string[]
-// const lernaPackageNames = compose(
-//     lernaPackagesGlob,
-//     packageNames,
-//     debug('lernaPackagenames')
-// )
+const zipWithPackageDirectory =
+    compose(
+        lernaPackagesGlob,
+        packageJsons,
+        map(path.dirname),
+        zip
+    )()
 
-const zipWithPackageDirectory = compose(
-    lernaPackagesGlob,
-    packageJsons,
-    map(path.dirname),
-    zip
-)()
+const lernaPackageDependencies =
+    compose(
+        lernaPackagesGlob,
+        internalPackageDependencies,
+        map(map(internalPackagePath(lernaPackagesGlob()))),
+        zipWithPackageDirectory)
 
-const lernaPackageDependencies = compose(
-    lernaPackagesGlob,
-    internalPackageDependencies,
-    map(map(internalPackagePath(lernaPackagesGlob()))),
-    zipWithPackageDirectory,
-)
-
-
+// pathInRepository :: File -> File
 const pathInRepository = (file: File): File =>
     path.relative(absoluteRepositoryRoot(), file)
 
-const lernaPackages = memoize(compose(
-    lernaPackagesGlob,
-    packageDirectories,
-    map(pathInRepository),
-    debug('lerna packages')
-))
+// lernaPackages :: string[]
+const lernaPackages =
+    memoize(
+        compose(
+            lernaPackagesGlob,
+            packageDirectories,
+            map(pathInRepository)))
 
-
-
-// linkDependentPackages :: Effect
-const linkDependentPackages = (dryRun: boolean) => compose(
-    lernaPackageDependencies,
-    // map(writeReferences),
-    map(toPackageReferences),
-    debug('lerna package references'),
-    // FIXME: abstract this writing into a more reusable form
-    map(writePackageReferences(dryRun)),
-
-    JSONstringifyPretty,
-    console.log.bind(null)
-)
+// linkDependentPackages :: boolean -> Effect
+const linkDependentPackages = (dryRun: boolean) =>
+    compose(
+        lernaPackageDependencies,
+        map(toPackageReferences),
+        debug('lerna package references'),
+        map(writePackageReferences(dryRun)),
+        JSONstringifyPretty,
+        console.log.bind(null)
+    )
 
 // linkChildrenPackages :: Effect
-const linkChildrenPackages = compose(
-    lernaPackages,
-    directoriesContainingPackages,
-    map(writeParentTsconfig(repositoryRoot(), lernaPackages())),
-    JSONstringifyPretty,
-    console.log.bind(null)
-)
+const linkChildrenPackages = (dryRun: boolean) =>
+    compose(
+        lernaPackages,
+        debug('lerna packages'),
+        directoriesContainingPackages,
+        debug('directories containing packages'),
+        toParentReferences(lernaPackages()),
+        debug('parent references'),
+        writeParentReferences(dryRun)(repositoryRoot()),
+        JSONstringifyPretty,
+        console.log.bind(null)
+    )
 
 
-// FIXME: wire-up dryRun flag
-const main = (dryRun: boolean) => {
-    linkDependentPackages(dryRun)()
-    // linkChildrenPackages()
-}
+// main :: boolean -> Effect
+const main = (dryRun: boolean = isDryRun()) => [
+    linkDependentPackages(dryRun),
+    linkChildrenPackages(dryRun)
+].forEach(invoke)
 
-compose(
-    isDryRun,
-    debug('isDryRun'),
-    main
-)()
+main()

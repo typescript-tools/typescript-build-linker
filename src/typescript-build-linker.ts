@@ -3,34 +3,50 @@
  * Link together packages in a mono-repo
  */
 
+const debug = {
+    fs: require('debug')('fs')
+}
 
 import * as fs from 'fs'
 import * as path from 'path'
 import * as tsconfig from 'tsconfig'
 import globby from 'globby'
 import zip from '@strong-roots-capital/zip'
+import memoize from 'fast-memoize'
 
 import {
     id,
     map,
     filter,
+    objectMap,
     prop,
     safeProp,
+    asProp,
     trace,
     traceDebugger
 } from './functional-programming'
 
 import {
-    stringify
+    File,
+    Glob
+} from './types'
+
+import {
+    stringify,
+    split,
+    join,
+    dirname,
+    isNotEmpty,
+    unsafeHead,
+    unsafeTail,
+    flatten,
+    uniquify,
+    containedInDirectory
 } from './utils'
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const compose = require('just-compose')
 /* eslint-enable @typescript-eslint/no-var-requires */
-
-export type File = string
-
-type Glob = string
 
 interface Reference {
     path: string;
@@ -38,6 +54,10 @@ interface Reference {
 
 interface References {
     references: Reference[];
+}
+
+interface ParentReference extends References {
+    files: File[];
 }
 
 
@@ -49,44 +69,42 @@ export const readJson = compose(
     JSON.parse.bind(null)
 )
 
-// TODO: ensure this doesn't go too deep, e.g. into a package's node_modules/package.json
 // packageNames :: Glob[] -> File[]
-export const packageJsons = compose(
-    globby.sync.bind(null),
-    filter(filename => !filename.includes('node_modules')),
-    filter(filename => filename.includes('package.json'))
-)
+export const packageJsons =
+    memoize(
+        compose(
+            globby.sync.bind(null),
+            filter(filename => !filename.includes('node_modules')),
+            filter(filename => filename.includes('package.json'))))
 
 // packageDirectories :: Glob[] -> File[]
-export const packageDirectories = compose(
-    packageJsons,
-    map(path.dirname)
-)
+export const packageDirectories =
+    compose(
+        packageJsons,
+        map(path.dirname))
 
 // packageNames :: Glob[] -> string[]
-export const packageNames = compose(
-    packageJsons,
-    map(readJson),
-    map(prop('name'))
-)
+export const packageNames =
+    compose(
+        packageJsons,
+        map(readJson),
+        map(prop('name')))
 
-
-// FIXME: needs to be able to handle undefined dependencies
 // jsonDependencies :: File => string[]
-const jsonDependencies = compose(
-    readJson,
-    safeProp('dependencies'),
-    Object.keys.bind(null)
-)
+const jsonDependencies =
+    compose(
+        readJson,
+        safeProp('dependencies'),
+        Object.keys.bind(null))
 
 const isInternalDependency = (globs: Glob[]) => (dependency: string): boolean =>
     packageNames(globs).includes(dependency)
 
 // packageDependencies :: string[] -> string[][]
-export const packageDependencies = compose(
-    packageJsons,
-    map(jsonDependencies)
-)
+export const packageDependencies =
+    compose(
+        packageJsons,
+        map(jsonDependencies))
 
 export const internalPackageDependencies = (globs: Glob[]): File[] =>
     packageDependencies(globs)
@@ -97,13 +115,15 @@ const internalPackages = (glob: Glob[]): { [key: string]: File } =>
     zip(
         packageNames(glob),
         packageJsons(glob).map(path.dirname)
-    ).reduce((res: any, duple: [string, string]) => (res[duple[0]] = duple[1], res), {})
+    ).reduce(
+        (res: any, duple: [string, string]) =>
+            (res[duple[0]] = duple[1], res), {})
 
-
-
-export const internalPackagePath = (glob: Glob[]) => (pkg: string) =>
+// internalPackagePath :: Glob[] -> File -> File
+export const internalPackagePath = (glob: Glob[]) => (pkg: File) =>
     internalPackages(glob)[pkg]
 
+// FIXME: can convert to a mash
 export const toPackageReferences = ([pkg, references]: [File, File[]]): [File, References] =>
     [pkg, {
         references: references
@@ -112,18 +132,18 @@ export const toPackageReferences = ([pkg, references]: [File, File[]]): [File, R
             }))
     }]
 
-
-
 // FIXME: will not like when there is no existing tsconfig.json
-const tsconfigParse = compose(
-    id,  // DISCUSS: is this necessary?
-    fs.readFileSync,
-    stringify,
-    (contents: string) => tsconfig.parse(contents, '')
-)
+const tsconfigParse =
+    compose(
+        id,  // DISCUSS: is this necessary?
+        fs.readFileSync,
+        stringify,
+        (contents: string) => tsconfig.parse(contents, ''))
 
-const writeJson = (file: File, contents: any) =>
+const writeJson = (file: File, contents: any) => {
+    debug.fs(`writing ${file} with contents: ${JSON.stringify(contents, null, 4)}`,)
     fs.writeFileSync(file, JSON.stringify(contents, null, 4))
+}
 
 // TODO: write more re-usably
 // FIXME: write more functionally
@@ -140,77 +160,54 @@ const addReferencesToTsconfig = ([pkg, references]: [File, Reference[]]) => {
 }
 
 // writeReferences :: boolean -> [File, Reference[]] => [File, Reference[]]
-export const writePackageReferences = (dryRun: boolean) => compose(
-    dryRun ? id : addReferencesToTsconfig
-)
+export const writePackageReferences = (dryRun: boolean) =>
+    compose(
+        dryRun ? id : addReferencesToTsconfig)
 
 
-
-const flatten = <T = any>(array: T[][]): T[] =>
-    array.flat()
-
-const uniquify = <T = any>(array: T[]): T[] =>
-    array.filter((element: T, position: number) => array.indexOf(element) === position)
 
 
 // directoriesContainingPackages :: File[] -> File[]
-export const directoriesContainingPackages = compose(
-    map(
-        (pkg: File) =>
-            path.dirname(pkg)
-                .split(path.sep)
-                .reduce((directories: File[], dir: File) =>
-                    directories.concat(
-                        path.join(directories[directories.length-1], dir)
-                    ), [''])
-                .filter(dir => dir !== '')
-    ),
-    flatten,
-    uniquify
-)
+export const directoriesContainingPackages =
+    compose(
+        map(
+            (pkg: File) =>
+                path.dirname(pkg)
+                    .split(path.sep)
+                    .scan((acc: File, dir: File) => path.join(acc, dir), '')
+                    .filter(isNotEmpty)
+        ),
+        flatten,
+        uniquify)
 
-const containedInDirectory = (dir: File) => (pkg: File): boolean =>
-    pkg.startsWith(dir)
-
-const split = (splitter: string) => (data: string): string[] =>
-    data.split(splitter)
-
-const isNotEmpty = (str: string): boolean =>
-    str.length !== 0
-
-const unsafeHead = <T = any>(array: T[]): T =>
-    array[0]
-
-const childrenDirectories = (dir: File) => (packages: File[]): File[] =>
+// childrenDirectories :: File -> File[] -> File[]]
+const childrenDirectories = (dir: File) =>
     compose(
         filter(containedInDirectory(dir)),
         map(pkg => pkg.replace(dir + path.sep, '')),
         map(split(path.sep)),
         map(unsafeHead),
         flatten,
-        filter(isNotEmpty)
-    ) (packages)
+        filter(isNotEmpty))
 
-interface ParentReference {
-    files: File[];
-    references: Reference[];
-}
-
-const toParentReferences = ([pkg, references]: [File, File[]]): [File, ParentReference] =>
-    [pkg, {
+const asParentReferences = (packages: File[]) =>
+    ({
         files: [],
-        references: references
-            .map(reference => ({
-                path: reference
-            }))}]
+        references: packages.map(asProp('path'))
+    })
 
-const writeParentReferences = (repositoryRoot: string) => ([dir, json]: [File, ParentReference]) => {
-    writeJson(path.join(repositoryRoot, dir, 'tsconfig.json'), json)
-    return [dir, json]
-}
+export const toParentReferences = (packages: File[]) => (parents: File[]) =>
+    parents.mash((parent: File) => [
+        parent,
+        asParentReferences(childrenDirectories(parent)(packages))
+    ])
 
-export const writeParentTsconfig = (repositoryRoot: string, packages: File[]) => (dir: File) =>
+export const writeParentReferences = (dryRun: boolean) => (repositoryRoot: File) =>
     compose(
-        toParentReferences,
-        writeParentReferences(repositoryRoot)
-    )([dir, childrenDirectories(dir)(packages)])
+        dryRun
+            ? id
+            : objectMap(
+                (json: ParentReference, dir: File) => {
+                    writeJson(path.join(repositoryRoot, dir, 'tsconfig.json'), json)
+                    return json
+                }))

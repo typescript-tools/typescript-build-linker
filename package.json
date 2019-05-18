@@ -47,9 +47,13 @@
   "dependencies": {
     "@strong-roots-capital/zip": "^1.0.0",
     "@types/docopt": "^0.6.31",
+    "data.either": "^1.5.2",
+    "debug": "^4.1.1",
     "docopt": "^0.6.2",
+    "fast-memoize": "^2.5.1",
     "globby": "^9.2.0",
     "just-compose": "^1.1.0",
+    "supports-color": "^6.1.0",
     "tsconfig": "^7.0.0"
   },
   "devDependencies": {

@@ -9,7 +9,12 @@ export const safeProp = (property: string) => (obj: any) =>
     obj[property] || {}
 
 export const trace = (label: string) => (x: any) => {
-    console.log(`${label}: ${JSON.stringify(x)}`)
+    console.log(`${label}: ${JSON.stringify(x, null, 4)}`)
+    return x
+}
+
+export const traceDebugger = (debugStream: any) => (label: string) => (x: any) => {
+    debugStream(`${label}: ${JSON.stringify(x, null, 4)}`)
     return x
 }
 

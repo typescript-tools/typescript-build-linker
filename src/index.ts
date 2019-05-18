@@ -1,13 +1,15 @@
 import * as path from 'path'
 import { docopt } from 'docopt'
 import zip from '@strong-roots-capital/zip'
+import memoize from 'fast-memoize'
 
 import {
     id,
     map,
     prop,
-    trace
-} from './functions'
+    trace,
+    traceDebugger
+} from './functional-programming'
 
 import {
     File,
@@ -17,39 +19,63 @@ import {
     packageDirectories,
     internalPackageDependencies,
     internalPackagePath,
-    writeReferences,
+    toPackageReferences,
+    writePackageReferences,
     directoriesContainingPackages,
     writeParentTsconfig
 } from './typescript-build-linker'
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+import {
+    negate,
+    JSONstringifyPretty
+} from './utils'
+
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const compose = require('just-compose')
+const Either = require('data.either')
+/* eslint-enable @typescript-eslint/no-var-requires */
 
+const debug = traceDebugger(require('debug')('tsl'))
 
+// TODO: create an npm bin entrypoint
+// TODO: don't print anything on a successful run
 // TODO: probably add a [--dry-run] option
-const docstring = `
+const docstring = (): string => `
 Usage:
-      tsl <repository>
+      tsl [--dry-run] <repository>
 `
 
 interface CommandLineOptions {
     [key: string]: string;
 }
 
-const prettyJSONStringify = (obj: any): string =>
-    JSON.stringify(obj, null, 4)
+const asEither = (errorMessage: string) => (value: any) =>
+    value ? Either.Right(value) : Either.Left(errorMessage)
 
-const parseOptions = (): CommandLineOptions =>
-    docopt(docstring, {
+// parseOptions :: CommandLineOptions
+const parseOptions = memoize((): CommandLineOptions =>
+    docopt(docstring(), {
         help: true,
         version: null,
         exit: true
-    })
+    }))
 
-const repositoryRoot = compose(
-    parseOptions,
-    prop('<repository>')
-)
+// isDryRun :: Boolean
+const isDryRun = (): boolean =>
+    compose(
+        parseOptions,
+        prop('--dry-run'),
+        // negate,
+        // asEither('Use enabled `--dry-run` option')
+    )()
+
+
+const repositoryRoot = (): string =>
+    compose(
+        parseOptions,
+        prop('<repository>')
+    )()
 
 const absoluteRepositoryRoot = compose(
     repositoryRoot,
@@ -62,70 +88,81 @@ const repositoryFile = (filename: string): string =>
 const lernaJson = () =>
     repositoryFile('lerna.json')
 
+
 // lernaPackagesGlob :: File -> string[]
-const lernaPackagesGlob = compose(
+const lernaPackagesGlob = memoize(compose(
     lernaJson,
     readJson,
     prop('packages'),
-    // trace('lernaPackagesGlob')
-)
-
-// lernaRepositoryPackagesGlob :: File -> string[]
-const lernaRepositoryPackagesGlob = compose(
-    lernaPackagesGlob,
     map(repositoryFile),
-    // trace('lernaPackagesGlob')
-)
+    debug('lerna packages glob')
+))
 
 // lernaPackageNames :: File -> string[]
-const lernaPackageNames = compose(
-    lernaRepositoryPackagesGlob,
-    packageNames,
-    // trace('lernaPackagenames')
-)
+// const lernaPackageNames = compose(
+//     lernaPackagesGlob,
+//     packageNames,
+//     debug('lernaPackagenames')
+// )
 
 const zipWithPackageDirectory = compose(
-    lernaRepositoryPackagesGlob,
+    lernaPackagesGlob,
     packageJsons,
     map(path.dirname),
     zip
 )()
 
-const lernaPackageReferences = compose(
-    lernaRepositoryPackagesGlob,
-    trace('lerna repository packages glob'),
+const lernaPackageDependencies = compose(
+    lernaPackagesGlob,
     internalPackageDependencies,
-    map(map(internalPackagePath(lernaRepositoryPackagesGlob()))),
-    zipWithPackageDirectory
+    map(map(internalPackagePath(lernaPackagesGlob()))),
+    zipWithPackageDirectory,
 )
 
-const linkDependentPackages = compose(
-    lernaPackageReferences,
-    // trace('lerna package references'),
-    map(writeReferences),
-    prettyJSONStringify,
-    console.log.bind(null)
-)
 
 const pathInRepository = (file: File): File =>
     path.relative(absoluteRepositoryRoot(), file)
 
-const packagesInRepository = compose(
-    lernaRepositoryPackagesGlob,
+const lernaPackages = memoize(compose(
+    lernaPackagesGlob,
     packageDirectories,
     map(pathInRepository),
-    // trace('packages in repository')
+    debug('lerna packages')
+))
+
+
+
+// linkDependentPackages :: Effect
+const linkDependentPackages = (dryRun: boolean) => compose(
+    lernaPackageDependencies,
+    // map(writeReferences),
+    map(toPackageReferences),
+    debug('lerna package references'),
+    // FIXME: abstract this writing into a more reusable form
+    map(writePackageReferences(dryRun)),
+
+    JSONstringifyPretty,
+    console.log.bind(null)
 )
 
-
+// linkChildrenPackages :: Effect
 const linkChildrenPackages = compose(
-    packagesInRepository,
+    lernaPackages,
     directoriesContainingPackages,
-    map(writeParentTsconfig(repositoryRoot(), packagesInRepository())),
-    prettyJSONStringify,
+    map(writeParentTsconfig(repositoryRoot(), lernaPackages())),
+    JSONstringifyPretty,
     console.log.bind(null)
 )
 
 
-linkDependentPackages()
-linkChildrenPackages()
+// FIXME: wire-up dryRun flag
+const main = (dryRun: boolean) => {
+    linkDependentPackages(dryRun)()
+    // linkChildrenPackages()
+}
+
+compose(
+    isDryRun,
+    debug('isDryRun'),
+    main
+)()

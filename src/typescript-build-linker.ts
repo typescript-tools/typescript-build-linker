@@ -16,11 +16,17 @@ import {
     filter,
     prop,
     safeProp,
-    trace
-} from './functions'
+    trace,
+    traceDebugger
+} from './functional-programming'
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+import {
+    stringify
+} from './utils'
+
+/* eslint-disable @typescript-eslint/no-var-requires */
 const compose = require('just-compose')
+/* eslint-enable @typescript-eslint/no-var-requires */
 
 export type File = string
 
@@ -30,29 +36,32 @@ interface Reference {
     path: string;
 }
 
+interface References {
+    references: Reference[];
+}
+
 
 // FIXME: is unsafe, wrap in an Either
 // lernaPackages :: string -> Object
 export const readJson = compose(
-    id,
+    id,  // DISCUSS: why is this `id` necessary?
     fs.readFileSync,
     JSON.parse.bind(null)
 )
 
 // TODO: ensure this doesn't go too deep, e.g. into a package's node_modules/package.json
-// packageNames :: string[] -> string[]
-export const packageJsons = (globs: Glob[]): File[] =>
-    globby.sync(globs)
-        .filter(filename => !filename.includes('node_modules'))
-        .filter(filename => filename.includes('package.json'))
+// packageNames :: Glob[] -> File[]
+export const packageJsons = compose(
+    globby.sync.bind(null),
+    filter(filename => !filename.includes('node_modules')),
+    filter(filename => filename.includes('package.json'))
+)
 
 // packageDirectories :: Glob[] -> File[]
 export const packageDirectories = compose(
     packageJsons,
     map(path.dirname)
 )
-
-
 
 // packageNames :: Glob[] -> string[]
 export const packageNames = compose(
@@ -95,45 +104,44 @@ const internalPackages = (glob: Glob[]): { [key: string]: File } =>
 export const internalPackagePath = (glob: Glob[]) => (pkg: string) =>
     internalPackages(glob)[pkg]
 
-const toReferences = ([pkg, references]: [File, File[]]): [File, Reference[]] =>
-    [pkg, references.map(reference => ({
-        path: path.relative(path.resolve(pkg), path.resolve(reference))
-    }))]
+export const toPackageReferences = ([pkg, references]: [File, File[]]): [File, References] =>
+    [pkg, {
+        references: references
+            .map(reference => ({
+                path: path.relative(path.resolve(pkg), path.resolve(reference))
+            }))
+    }]
 
-const parseTsconfig = (contents: string) =>
-    tsconfig.parse(contents, '')
 
-const stringify = (b: Buffer) =>
-    b.toString()
 
 // FIXME: will not like when there is no existing tsconfig.json
-const readTsconfig = compose(
-    id,
+const tsconfigParse = compose(
+    id,  // DISCUSS: is this necessary?
     fs.readFileSync,
     stringify,
-    parseTsconfig
+    (contents: string) => tsconfig.parse(contents, '')
 )
 
 const writeJson = (file: File, contents: any) =>
     fs.writeFileSync(file, JSON.stringify(contents, null, 4))
 
-// :: [string, Reference[]]
-const addReferencesToTsconfig = ([pkg, references]: [string, Reference[]]) => {
+// TODO: write more re-usably
+// FIXME: write more functionally
+// addReferencesToTsconfig :: [File, References -> [File, References
+const addReferencesToTsconfig = ([pkg, references]: [File, Reference[]]) => {
     writeJson(
         path.join(pkg, 'tsconfig.json'),
         Object.assign(
-            readTsconfig(path.join(pkg, 'tsconfig.json')),
-            {references: references}
+            tsconfigParse(path.join(pkg, 'tsconfig.json')),
+            references
         )
     )
     return [pkg, references]
 }
 
-// writeReferences :: [string, File[]] => ??
-export const writeReferences = compose(
-    toReferences,
-    // trace('as References'),
-    addReferencesToTsconfig
+// writeReferences :: boolean -> [File, Reference[]] => [File, Reference[]]
+export const writePackageReferences = (dryRun: boolean) => compose(
+    dryRun ? id : addReferencesToTsconfig
 )
 
 
@@ -184,7 +192,7 @@ const childrenDirectories = (dir: File) => (packages: File[]): File[] =>
     ) (packages)
 
 interface ParentReference {
-    files: string[];
+    files: File[];
     references: Reference[];
 }
 

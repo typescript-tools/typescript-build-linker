@@ -63,6 +63,7 @@ declare global {
     }
 }
 
+// TODO: use the bind-operator instead
 // eslint-disable-next-line @typescript-eslint/unbound-method
 Array.prototype.scan = function<R = any>(callback: (aggregate: R, item: any) => R, initialValue: R) {
     const appendAggregate = (acc: R[], item: any) => {

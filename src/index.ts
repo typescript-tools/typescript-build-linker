@@ -135,7 +135,7 @@ const linkDependentPackages = (dryRun: boolean) =>
         debug('lerna package references'),
         map(writePackageReferences(dryRun)),
         JSONstringifyPretty,
-        console.log.bind(null)
+        console.log.bind(console)
     )
 
 // linkChildrenPackages :: Effect
@@ -149,7 +149,7 @@ const linkChildrenPackages = (dryRun: boolean) =>
         debug('parent references'),
         writeParentReferences(dryRun)(repositoryRoot()),
         JSONstringifyPretty,
-        console.log.bind(null)
+        console.log.bind(console)
     )
 
 

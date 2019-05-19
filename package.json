@@ -1,13 +1,14 @@
 {
   "name": "@typescript-tools/typescript-build-linker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Link together packages in a mono-repo",
   "main": "dist/src/typescript-build-linker.js",
   "types": "dist/src/typescript-build-linker.d.ts",
   "scripts": {
     "prepublishOnly": "npm run compile",
-    "compile": "npm run clean && tsc",
+    "compile": "npm run clean && npm run genversion && tsc",
     "clean": "rm -rf dist",
+    "genversion": "genversion -e -s src/version.ts",
     "ava": "ava -s -v",
     "ava:fail-fast": "ava -s -v --fail-fast",
     "watch:ava": "nodemon -e 'ts json' -x 'npm run ava || true'",
@@ -41,7 +42,7 @@
     "build",
     "linker"
   ],
-  "author": "Amchelle Clendenin <amchelle.clendenin@utexas.edu> (https://github.com/typescript-tools)",
+  "author": "Eric Crosson <eric.s.crosson@utexas.edu> (https://github.com/EricCrosson)",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/typescript-tools/typescript-build-linker/issues"
@@ -50,7 +51,6 @@
   "dependencies": {
     "@strong-roots-capital/zip": "^1.0.0",
     "@types/docopt": "^0.6.31",
-    "data.either": "^1.5.2",
     "debug": "^4.1.1",
     "docopt": "^0.6.2",
     "fast-memoize": "^2.5.1",
@@ -66,6 +66,7 @@
     "ava": "^1.4.1",
     "codecov": "^3.1.0",
     "eslint": "^5.16.0",
+    "genversion": "^2.1.1",
     "husky": "^1.3.1",
     "nyc": "^14.1.0",
     "tap-nyc": "^1.0.3",

@@ -34,6 +34,8 @@ import {
     File
 } from './types'
 
+import { version } from './version'
+
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const compose = require('just-compose')
@@ -42,7 +44,9 @@ const compose = require('just-compose')
 const debug = traceDebugger(require('debug')('tsl'))
 
 const docstring = (): string => `
-TypeScript Build Linker
+TypeScript Build Linker version ${version}
+
+Link TypeScript Project References in a lerna monorepo.
 
 Usage:
       tsl [--dry-run] <repository>
@@ -56,8 +60,9 @@ interface CommandLineOptions {
 const parseOptions = memoize((): CommandLineOptions =>
     docopt(docstring(), {
         help: true,
-        version: null,
-        exit: true}))
+        version: version,
+        exit: true
+    }))
 
 // FIXME: make the dryRun output more representative of what will be
 // written to disk

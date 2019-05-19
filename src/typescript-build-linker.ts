@@ -75,10 +75,10 @@ export const packageJsons =
     memoize(
         compose(
             map((glob: Glob) => glob + '/package.json'),
-            ((globs: Glob[]) => globby.sync(globs, {
+            (globs: Glob[]) => globby.sync(globs, {
                 followSymlinkedDirectories: false,
                 ignore: ['**/node_modules/**']
-            })),
+            }),
             filter(filename => !filename.includes('node_modules')),
             filter(filename => filename.includes('package.json'))))
 

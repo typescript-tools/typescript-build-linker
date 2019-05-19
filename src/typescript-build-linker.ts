@@ -78,6 +78,7 @@ const globbySync = (globs: Glob[]): File[] =>
 export const packageJsons =
     memoize(
         compose(
+            map((glob: Glob) => glob + '/package.json'),
             globbySync,
             filter(filename => !filename.includes('node_modules')),
             filter(filename => filename.includes('package.json'))))

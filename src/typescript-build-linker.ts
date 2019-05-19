@@ -70,16 +70,15 @@ export const readJson =
             fs.readFileSync,
             JSON.parse.bind(null)))
 
-// globbySync :: Glob[] -> File[]
-const globbySync = (globs: Glob[]): File[] =>
-    globby.sync(globs, {followSymlinkedDirectories: false})
-
 // packageJsons :: Glob[] -> File[]
 export const packageJsons =
     memoize(
         compose(
             map((glob: Glob) => glob + '/package.json'),
-            globbySync,
+            ((globs: Glob[]) => globby.sync(globs, {
+                followSymlinkedDirectories: false,
+                ignore: ['**/node_modules/**']
+            })),
             filter(filename => !filename.includes('node_modules')),
             filter(filename => filename.includes('package.json'))))
 

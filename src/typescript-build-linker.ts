@@ -22,7 +22,6 @@ import {
     prop,
     safeProp,
     asProp,
-    trace,
     traceDebugger
 } from './functional-programming'
 
@@ -34,11 +33,9 @@ import {
 import {
     stringify,
     split,
-    join,
-    dirname,
+    sort,
     isNotEmpty,
     unsafeHead,
-    unsafeTail,
     flatten,
     uniquify,
     containedInDirectory
@@ -47,6 +44,8 @@ import {
 /* eslint-disable @typescript-eslint/no-var-requires */
 const compose = require('just-compose')
 /* eslint-enable @typescript-eslint/no-var-requires */
+
+const traceDebug = traceDebugger(require('debug')('linker'))
 
 interface Reference {
     path: string;
@@ -63,17 +62,22 @@ interface ParentReference extends References {
 
 // FIXME: is unsafe, wrap in an Either
 // lernaPackages :: string -> Object
-export const readJson = compose(
-    id,  // DISCUSS: why is this `id` necessary?
-    fs.readFileSync,
-    JSON.parse.bind(null)
-)
+export const readJson =
+    memoize(
+        compose(
+            id,  // DISCUSS: why is this `id` necessary?
+            fs.readFileSync,
+            JSON.parse.bind(null)))
 
-// packageNames :: Glob[] -> File[]
+// globbySync :: Glob[] -> File[]
+const globbySync = (globs: Glob[]): File[] =>
+    globby.sync(globs, {followSymlinkedDirectories: false})
+
+// packageJsons :: Glob[] -> File[]
 export const packageJsons =
     memoize(
         compose(
-            globby.sync.bind(null),
+            globbySync,
             filter(filename => !filename.includes('node_modules')),
             filter(filename => filename.includes('package.json'))))
 
@@ -83,29 +87,38 @@ export const packageDirectories =
         packageJsons,
         map(path.dirname))
 
-// packageNames :: Glob[] -> string[]
-export const packageNames =
-    compose(
-        packageJsons,
-        map(readJson),
-        map(prop('name')))
+// packageNames :: Glob[] -> File[]
+const packageNames =
+    memoize(
+        compose(
+            packageJsons,
+            map(readJson),
+            map(prop('name'))))
 
-// jsonDependencies :: File => string[]
+// jsonDependencies :: File -> string[]
 const jsonDependencies =
     compose(
         readJson,
         safeProp('dependencies'),
         Object.keys.bind(null))
 
+// jsonDevDependencies :: File -> string[]
+const jsonDevDependencies =
+    compose(
+        readJson,
+        safeProp('devDependencies'),
+        Object.keys.bind(null))
+
 const isInternalDependency = (globs: Glob[]) => (dependency: string): boolean =>
     packageNames(globs).includes(dependency)
 
-// packageDependencies :: string[] -> string[][]
+// packageDependencies :: File[] -> string[][]
 export const packageDependencies =
     compose(
         packageJsons,
-        map(jsonDependencies))
+        map((json: File) => [...jsonDependencies(json), ...jsonDevDependencies(json)]))
 
+// internalPackageDependencies :: Glob[] -> File[][]
 export const internalPackageDependencies = (globs: Glob[]): File[] =>
     packageDependencies(globs)
         .map(filter(isInternalDependency(globs)))
@@ -123,14 +136,21 @@ const internalPackages = (glob: Glob[]): { [key: string]: File } =>
 export const internalPackagePath = (glob: Glob[]) => (pkg: File) =>
     internalPackages(glob)[pkg]
 
-// FIXME: can convert to a mash
-export const toPackageReferences = ([pkg, references]: [File, File[]]): [File, References] =>
-    [pkg, {
-        references: references
-            .map(reference => ({
-                path: path.relative(path.resolve(pkg), path.resolve(reference))
-            }))
-    }]
+const relativePathFrom = (from: File) => (to: File): File =>
+    path.relative(path.resolve(from), path.resolve(to))
+
+// toPackageReferejces :: [File, File[]] -> [File, References]
+export const toPackageReferences = ([pkg, references]: [File, File[]]) =>
+    [
+        pkg,
+        {
+            references: compose(
+                map(relativePathFrom(pkg)),
+                sort,
+                map(asProp('path'))
+            )(references)
+        }
+    ]
 
 // FIXME: will not like when there is no existing tsconfig.json
 const tsconfigParse =
@@ -140,13 +160,10 @@ const tsconfigParse =
         stringify,
         (contents: string) => tsconfig.parse(contents, ''))
 
-const writeJson = (file: File, contents: any) => {
-    debug.fs(`writing ${file} with contents: ${JSON.stringify(contents, null, 4)}`,)
+const writeJson = (file: File, contents: any) =>
     fs.writeFileSync(file, JSON.stringify(contents, null, 4))
-}
 
-// TODO: write more re-usably
-// FIXME: write more functionally
+// FIXME: write more functionally and re-usably
 // addReferencesToTsconfig :: [File, References -> [File, References
 const addReferencesToTsconfig = ([pkg, references]: [File, Reference[]]) => {
     writeJson(
@@ -178,7 +195,8 @@ export const directoriesContainingPackages =
                     .filter(isNotEmpty)
         ),
         flatten,
-        uniquify)
+        uniquify,
+        traceDebug('directories containing packages'))
 
 // childrenDirectories :: File -> File[] -> File[]]
 const childrenDirectories = (dir: File) =>
@@ -188,9 +206,11 @@ const childrenDirectories = (dir: File) =>
         map(split(path.sep)),
         map(unsafeHead),
         flatten,
-        filter(isNotEmpty))
+        filter(isNotEmpty),
+        uniquify)
 
-const asParentReferences = (packages: File[]) =>
+// asParentReference :: File[] -> ParentReference
+const asParentReference = (packages: File[]) =>
     ({
         files: [],
         references: packages.map(asProp('path'))
@@ -199,9 +219,13 @@ const asParentReferences = (packages: File[]) =>
 export const toParentReferences = (packages: File[]) => (parents: File[]) =>
     parents.mash((parent: File) => [
         parent,
-        asParentReferences(childrenDirectories(parent)(packages))
+        compose(
+            childrenDirectories(parent),
+            asParentReference
+        ) (packages)
     ])
 
+// FIXME: should _add_ references instead of overwrite entire tsconfig file
 export const writeParentReferences = (dryRun: boolean) => (repositoryRoot: File) =>
     compose(
         dryRun

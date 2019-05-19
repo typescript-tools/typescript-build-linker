@@ -25,6 +25,10 @@ export const stringify = (b: Buffer) =>
 export const split = (splitter: string) => (data: string): string[] =>
     data.split(splitter)
 
+// sort :: [a] -> [a]
+export const sort = <T = any>(array: T[]): T[] =>
+    array.sort()
+
 // dirname :: string -> string
 export const dirname = (file: File): File =>
     path.dirname(file)

@@ -1,20 +1,19 @@
+#!/usr/bin/env node
+
 import * as path from 'path'
 import { docopt } from 'docopt'
 import zip from '@strong-roots-capital/zip'
 import memoize from 'fast-memoize'
 
 import {
-    id,
     map,
     prop,
-    invoke,
-    trace,
+    log,
     traceDebugger
 } from './functional-programming'
 
 import {
     readJson,
-    packageNames,
     packageJsons,
     packageDirectories,
     internalPackageDependencies,
@@ -42,9 +41,6 @@ const compose = require('just-compose')
 
 const debug = traceDebugger(require('debug')('tsl'))
 
-// TODO: create an npm bin entrypoint
-// TODO: don't print anything on a successful run
-// TODO: probably add a [--dry-run] option
 const docstring = (): string => `
 Usage:
       tsl [--dry-run] <repository>
@@ -60,6 +56,9 @@ const parseOptions = memoize((): CommandLineOptions =>
         help: true,
         version: null,
         exit: true}))
+
+// FIXME: make the dryRun output more representative of what will be
+// written to disk
 
 // isDryRun :: Boolean
 const isDryRun = // (): boolean =>
@@ -128,18 +127,18 @@ const lernaPackages =
             map(pathInRepository)))
 
 // linkDependentPackages :: boolean -> Effect
-const linkDependentPackages = (dryRun: boolean) =>
+const linkDependentPackages = (isDryRun: boolean) =>
     compose(
         lernaPackageDependencies,
         map(toPackageReferences),
         debug('lerna package references'),
-        map(writePackageReferences(dryRun)),
+        map(writePackageReferences(isDryRun)),
         JSONstringifyPretty,
-        console.log.bind(console)
+        log(isDryRun)(console.log.bind(console))
     )
 
 // linkChildrenPackages :: Effect
-const linkChildrenPackages = (dryRun: boolean) =>
+const linkChildrenPackages = (isDryRun: boolean) =>
     compose(
         lernaPackages,
         debug('lerna packages'),
@@ -147,16 +146,16 @@ const linkChildrenPackages = (dryRun: boolean) =>
         debug('directories containing packages'),
         toParentReferences(lernaPackages()),
         debug('parent references'),
-        writeParentReferences(dryRun)(repositoryRoot()),
+        writeParentReferences(isDryRun)(repositoryRoot()),
         JSONstringifyPretty,
-        console.log.bind(console)
+        log(isDryRun)(console.log.bind(console))
     )
 
 
 // main :: boolean -> Effect
-const main = (dryRun: boolean = isDryRun()) => [
-    linkDependentPackages(dryRun),
-    linkChildrenPackages(dryRun)
-].forEach(invoke)
+const main = () => {
+    linkDependentPackages(isDryRun())()
+    linkChildrenPackages(isDryRun())()
+}
 
 main()

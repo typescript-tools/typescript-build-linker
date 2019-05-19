@@ -2,36 +2,29 @@
  * Functional-programming utilities
  */
 
+// prop :: string -> any
 export const prop = (property: string) => (obj: any) =>
     obj[property]
 
+// safeProp :: string -> any (truthy)
 export const safeProp = (property: string) => (obj: any) =>
     obj[property] || {}
 
+// asProp :: string -> any -> { string: any }
 export const asProp = (property: string) => (value: any) =>
     ({
         [property]: value
     })
 
-export const trace = (label: string) => (x: any) => {
-    console.log(`${label}: ${JSON.stringify(x, null, 4)}`)
-    return x
-}
-
-export const traceDebugger = (debugStream: any) => (label: string) => (x: any) => {
-    debugStream(`${label}: ${JSON.stringify(x, null, 4)}`)
-    return x
-}
-
+// id :: any -> any
 export const id = (x: any) =>
     x
 
-export const invoke = (f: Function) =>
-    f()
-
+// map :: (any -> any) -> any -> any
 export const map = (f: (box: any) => any) => (box: any) =>
     box.map(f)
 
+// filter :: (any -> boolean) -> any -> any[]
 export const filter = (predicate: (box: any) => boolean) => (box: any) =>
     box.filter(predicate)
 
@@ -45,25 +38,37 @@ export const objectMap = (f: (value: any, key: string) => any) => (obj: any) =>
             {}
         )
 
+// trace :: string -> any -> any
+export const trace = (label: string) => (x: any) => {
+    console.log(`${label}: ${JSON.stringify(x, null, 4)}`)
+    return x
+}
 
-// export const scan = <R = any>(callback: (...args: any[]) => R, initialValue: R) => <T = any>(array: T[]) => {
-//     const appendAggregate = (acc: R[], item: T) => {
-//         const aggregate = acc.slice(-1)[0] // get last item
-//         const newAggregate = callback(aggregate, item)
-//         return [...acc, newAggregate]
-//     }
-//     const accumulator = [initialValue]
-//     return array.reduce(appendAggregate, accumulator)
-// }
+// traceDebugger :: (string -> any) -> string -> any -> any
+export const traceDebugger = (debugStream: any) => (label: string) => (x: any) => {
+    debugStream(`${label}: ${JSON.stringify(x, null, 4)}`)
+    return x
+}
 
-// TODO: pull into own package
+export const log = (isDryRun: boolean) => (logger: any) => (...message: any[]) => {
+    isDryRun ? (logger(...message), id) : id
+}
+
+/**
+ * Shame on me
+ *
+ * Don't extend builtin prototypes #SmooshGate
+ *
+ * It would be better to use the bind operator syntax (::) but
+ * TypeScript has opted not to support it until the official proposal
+ * is farther along.
+ */
 declare global {
     interface Array<T> {
         scan<R = any>(callback: (aggregate: R, item: T) => R, initialValue: R): R[];
     }
 }
 
-// TODO: use the bind-operator instead
 // eslint-disable-next-line @typescript-eslint/unbound-method
 Array.prototype.scan = function<R = any>(callback: (aggregate: R, item: any) => R, initialValue: R) {
     const appendAggregate = (acc: R[], item: any) => {
@@ -76,7 +81,16 @@ Array.prototype.scan = function<R = any>(callback: (aggregate: R, item: any) => 
     return this.reduce(appendAggregate, accumulator)
 }
 
-// TODO: pull into own package
+/**
+ * Shame on me
+ *
+ * Don't extend builtin prototypes #SmooshGate
+ *
+ * It would be better to use the bind operator syntax (::) but
+ * TypeScript has opted not to support it until the official proposal
+ * is farther along.
+ */
+
 declare global {
     interface Array<T> {
         mash<R = any>(callback: (item: T) => [string, R]): {[key: string]: R};

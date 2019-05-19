@@ -179,7 +179,7 @@ const addReferencesToTsconfig = ([pkg, references]: [File, Reference[]]) => {
     return [pkg, references]
 }
 
-// writeReferences :: boolean -> [File, Reference[]] => [File, Reference[]]
+// writePackageReferences :: boolean -> [File, Reference[]] => [File, Reference[]]
 export const writePackageReferences = (dryRun: boolean) =>
     compose(
         dryRun ? id : addReferencesToTsconfig)

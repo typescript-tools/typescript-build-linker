@@ -1,8 +1,10 @@
 
-typescript-build-linker [![Build status](https://travis-ci.org/typescript-tools/typescript-build-linker.svg?branch=master)](https://travis-ci.org/typescript-tools/typescript-build-linker) [![npm version](https://img.shields.io/npm/v/@typescript-tools/typescript-build-linker.svg)](https://npmjs.org/package/@typescript-tools/typescript-build-linker) [![codecov](https://codecov.io/gh/typescript-tools/typescript-build-linker/branch/master/graph/badge.svg)](https://codecov.io/gh/typescript-tools/typescript-build-linker)
-========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+typescript-build-linker [![Build status](https://travis-ci.org/typescript-tools/typescript-build-linker.svg?branch=master)](https://travis-ci.org/typescript-tools/typescript-build-linker) [![npm version](https://img.shields.io/npm/v/@typescript-tools/typescript-build-linker.svg)](https://npmjs.org/package/@typescript-tools/typescript-build-linker)
+=============================================================================================================================================================================================================================================================================================================================================================
 
-> Link together packages in a mono-repo
+> Link together TypeScript packages in a mono-repo
+
+Automatically manages TypeScript Project References in a lerna monorepo.
 
 Install
 -------
@@ -14,20 +16,23 @@ npm install @typescript-tools/typescript-build-linker
 Use
 ---
 
-```typescript
-import { typescriptBuildLinker } from '@typescript-tools/typescript-build-linker'
-// TODO: describe usage
+```shell
+tsl [--dry-run] <repository>
 ```
+
+Point `tsl` at the root directory of your monorepo and it will write the `references` list in each `tsconfig.json` file of every leaf package and parent directory.
+
+This project assumes a directory layout similar to the example in [lern-a](https://github.com/RyanCavanaugh/learn-a), and is probably not flexible enough at this time to handle other monorepo structures.
 
 Related
 -------
 
-TODO
+*   [lerna](https://github.com/lerna/lerna)
 
 Acknowledgments
 ---------------
 
-TODO
+*   [lern-a](https://github.com/RyanCavanaugh/learn-a)
 
 ## Index
 
@@ -37,7 +42,6 @@ TODO
 * [packageDependencies](#packagedependencies)
 * [packageDirectories](#packagedirectories)
 * [packageJsons](#packagejsons)
-* [packageNames](#packagenames)
 * [readJson](#readjson)
 
 ### Functions
@@ -67,9 +71,10 @@ TODO
                     .filter(isNotEmpty)
         ),
         flatten,
-        uniquify)
+        uniquify,
+        traceDebug('directories containing packages'))
 
-*Defined in [typescript-build-linker.ts:171](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L171)*
+*Defined in [typescript-build-linker.ts:188](https://github.com/typescript-tools/typescript-build-linker/blob/3711755/src/typescript-build-linker.ts#L188)*
 
 ___
 <a id="packagedependencies"></a>
@@ -79,9 +84,9 @@ ___
 **● packageDependencies**: *`any`* = 
     compose(
         packageJsons,
-        map(jsonDependencies))
+        map((json: File) => [...jsonDependencies(json), ...jsonDevDependencies(json)]))
 
-*Defined in [typescript-build-linker.ts:104](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L104)*
+*Defined in [typescript-build-linker.ts:116](https://github.com/typescript-tools/typescript-build-linker/blob/3711755/src/typescript-build-linker.ts#L116)*
 
 ___
 <a id="packagedirectories"></a>
@@ -93,7 +98,7 @@ ___
         packageJsons,
         map(path.dirname))
 
-*Defined in [typescript-build-linker.ts:81](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L81)*
+*Defined in [typescript-build-linker.ts:85](https://github.com/typescript-tools/typescript-build-linker/blob/3711755/src/typescript-build-linker.ts#L85)*
 
 ___
 <a id="packagejsons"></a>
@@ -103,37 +108,25 @@ ___
 **● packageJsons**: *`any`* = 
     memoize(
         compose(
-            globby.sync.bind(null),
+            globbySync,
             filter(filename => !filename.includes('node_modules')),
             filter(filename => filename.includes('package.json'))))
 
-*Defined in [typescript-build-linker.ts:73](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L73)*
-
-___
-<a id="packagenames"></a>
-
-### `<Const>` packageNames
-
-**● packageNames**: *`any`* = 
-    compose(
-        packageJsons,
-        map(readJson),
-        map(prop('name')))
-
-*Defined in [typescript-build-linker.ts:87](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L87)*
+*Defined in [typescript-build-linker.ts:77](https://github.com/typescript-tools/typescript-build-linker/blob/3711755/src/typescript-build-linker.ts#L77)*
 
 ___
 <a id="readjson"></a>
 
 ### `<Const>` readJson
 
-**● readJson**: *`any`* =  compose(
-    id,  // DISCUSS: why is this `id` necessary?
-    fs.readFileSync,
-    JSON.parse.bind(null)
-)
+**● readJson**: *`any`* = 
+    memoize(
+        compose(
+            id,  // DISCUSS: why is this `id` necessary?
+            fs.readFileSync,
+            JSON.parse.bind(null)))
 
-*Defined in [typescript-build-linker.ts:66](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L66)*
+*Defined in [typescript-build-linker.ts:65](https://github.com/typescript-tools/typescript-build-linker/blob/3711755/src/typescript-build-linker.ts#L65)*
 
 ___
 
@@ -145,7 +138,7 @@ ___
 
 ▸ **internalPackageDependencies**(globs: *`Glob`[]*): `File`[]
 
-*Defined in [typescript-build-linker.ts:109](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L109)*
+*Defined in [typescript-build-linker.ts:122](https://github.com/typescript-tools/typescript-build-linker/blob/3711755/src/typescript-build-linker.ts#L122)*
 
 **Parameters:**
 
@@ -162,7 +155,7 @@ ___
 
 ▸ **internalPackagePath**(glob: *`Glob`[]*): `(Anonymous function)`
 
-*Defined in [typescript-build-linker.ts:123](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L123)*
+*Defined in [typescript-build-linker.ts:136](https://github.com/typescript-tools/typescript-build-linker/blob/3711755/src/typescript-build-linker.ts#L136)*
 
 **Parameters:**
 
@@ -177,9 +170,9 @@ ___
 
 ### `<Const>` toPackageReferences
 
-▸ **toPackageReferences**(__namedParameters: *[`string`, `Array`]*): [`File`, `References`]
+▸ **toPackageReferences**(__namedParameters: *[`string`, `Array`]*): (`string` \| `object`)[]
 
-*Defined in [typescript-build-linker.ts:127](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L127)*
+*Defined in [typescript-build-linker.ts:143](https://github.com/typescript-tools/typescript-build-linker/blob/3711755/src/typescript-build-linker.ts#L143)*
 
 **Parameters:**
 
@@ -187,7 +180,7 @@ ___
 | ------ | ------ |
 | __namedParameters | [`string`, `Array`] |
 
-**Returns:** [`File`, `References`]
+**Returns:** (`string` \| `object`)[]
 
 ___
 <a id="toparentreferences"></a>
@@ -196,7 +189,7 @@ ___
 
 ▸ **toParentReferences**(packages: *`File`[]*): `(Anonymous function)`
 
-*Defined in [typescript-build-linker.ts:199](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L199)*
+*Defined in [typescript-build-linker.ts:219](https://github.com/typescript-tools/typescript-build-linker/blob/3711755/src/typescript-build-linker.ts#L219)*
 
 **Parameters:**
 
@@ -213,7 +206,7 @@ ___
 
 ▸ **writePackageReferences**(dryRun: *`boolean`*): `any`
 
-*Defined in [typescript-build-linker.ts:163](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L163)*
+*Defined in [typescript-build-linker.ts:180](https://github.com/typescript-tools/typescript-build-linker/blob/3711755/src/typescript-build-linker.ts#L180)*
 
 **Parameters:**
 
@@ -230,7 +223,7 @@ ___
 
 ▸ **writeParentReferences**(dryRun: *`boolean`*): `(Anonymous function)`
 
-*Defined in [typescript-build-linker.ts:205](https://github.com/typescript-tools/typescript-build-linker/blob/bfd2fd6/src/typescript-build-linker.ts#L205)*
+*Defined in [typescript-build-linker.ts:229](https://github.com/typescript-tools/typescript-build-linker/blob/3711755/src/typescript-build-linker.ts#L229)*
 
 **Parameters:**
 

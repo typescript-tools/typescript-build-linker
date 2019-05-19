@@ -39,7 +39,6 @@ import { version } from './version'
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 const compose = require('just-compose')
-// const version = require('./version')
 /* eslint-enable @typescript-eslint/no-var-requires */
 
 const debug = traceDebugger(require('debug')('tsl'))

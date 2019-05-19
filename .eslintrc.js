@@ -34,6 +34,7 @@ module.exports = {
         '@typescript-eslint/unbound-method': ['warn', {ignoreStatic: true}],
         '@typescript-eslint/unified-signatures': 'warn',
         '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/require-array-sort-compare': 'off'
         // @typescript-eslint/func-call-spacing rule not found?
         // 'func-call-spacing': 'off',
         // '@typescript-eslint/func-call-spacing': ['error'],

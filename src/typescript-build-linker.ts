@@ -3,10 +3,6 @@
  * Link together packages in a mono-repo
  */
 
-const debug = {
-    fs: require('debug')('fs')
-}
-
 import * as fs from 'fs'
 import * as path from 'path'
 import * as tsconfig from 'tsconfig'

@@ -3,6 +3,10 @@
  * Link together packages in a mono-repo
  */
 
+const debug = {
+    fs: require('debug')('fs')
+}
+
 import * as fs from 'fs'
 import * as path from 'path'
 import * as tsconfig from 'tsconfig'
@@ -62,6 +66,7 @@ export const readJson =
     memoize(
         compose(
             id,  // DISCUSS: why is this `id` necessary?
+            traceDebug('reading file'),
             fs.readFileSync,
             JSON.parse.bind(null)))
 
@@ -156,8 +161,10 @@ const tsconfigParse =
         stringify,
         (contents: string) => tsconfig.parse(contents, ''))
 
-const writeJson = (file: File, contents: any) =>
+const writeJson = (file: File, contents: any) => {
+    debug.fs(`writing file ${file}`)
     fs.writeFileSync(file, JSON.stringify(contents, null, 4))
+}
 
 // FIXME: write more functionally and re-usably
 // addReferencesToTsconfig :: [File, References -> [File, References

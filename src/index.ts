@@ -42,6 +42,8 @@ const compose = require('just-compose')
 const debug = traceDebugger(require('debug')('tsl'))
 
 const docstring = (): string => `
+TypeScript Build Linker
+
 Usage:
       tsl [--dry-run] <repository>
 `
@@ -141,7 +143,6 @@ const linkDependentPackages = (isDryRun: boolean) =>
 const linkChildrenPackages = (isDryRun: boolean) =>
     compose(
         lernaPackages,
-        debug('lerna packages'),
         directoriesContainingPackages,
         debug('directories containing packages'),
         toParentReferences(lernaPackages()),

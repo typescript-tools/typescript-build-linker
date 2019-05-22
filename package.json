@@ -53,6 +53,7 @@
     "@types/docopt": "^0.6.31",
     "debug": "^4.1.1",
     "docopt": "^0.6.2",
+    "fast-deep-equal": "^2.0.1",
     "fast-memoize": "^2.5.1",
     "globby": "^9.2.0",
     "just-compose": "^1.1.0",

@@ -13,6 +13,7 @@ import * as tsconfig from 'tsconfig'
 import globby from 'globby'
 import zip from '@strong-roots-capital/zip'
 import memoize from 'fast-memoize'
+import deepEqual from 'fast-deep-equal'
 
 import {
     id,
@@ -166,10 +167,17 @@ const writeJson = (file: File, contents: any) => {
     fs.writeFileSync(file, JSON.stringify(contents, null, 4))
 }
 
+// Only write file if contents will be changed
+const updateJson = (file: File, contents: any) => {
+    if (!deepEqual(contents, readJson(file))) {
+        writeJson(file, contents)
+    }
+}
+
 // FIXME: write more functionally and re-usably
 // addReferencesToTsconfig :: [File, References -> [File, References
 const addReferencesToTsconfig = ([pkg, references]: [File, Reference[]]) => {
-    writeJson(
+    updateJson(
         path.join(pkg, 'tsconfig.json'),
         Object.assign(
             tsconfigParse(path.join(pkg, 'tsconfig.json')),
@@ -235,6 +243,6 @@ export const writeParentReferences = (dryRun: boolean) => (repositoryRoot: File)
             ? id
             : objectMap(
                 (json: ParentReference, dir: File) => {
-                    writeJson(path.join(repositoryRoot, dir, 'tsconfig.json'), json)
+                    updateJson(path.join(repositoryRoot, dir, 'tsconfig.json'), json)
                     return json
                 }))

@@ -74,7 +74,7 @@ Acknowledgments
         uniquify,
         traceDebug('directories containing packages'))
 
-*Defined in [typescript-build-linker.ts:191](https://github.com/typescript-tools/typescript-build-linker/blob/81e94e4/src/typescript-build-linker.ts#L191)*
+*Defined in [typescript-build-linker.ts:199](https://github.com/typescript-tools/typescript-build-linker/blob/a5b6d3b/src/typescript-build-linker.ts#L199)*
 
 ___
 <a id="packagedependencies"></a>
@@ -86,7 +86,7 @@ ___
         packageJsons,
         map((json: File) => [...jsonDependencies(json), ...jsonDevDependencies(json)]))
 
-*Defined in [typescript-build-linker.ts:117](https://github.com/typescript-tools/typescript-build-linker/blob/81e94e4/src/typescript-build-linker.ts#L117)*
+*Defined in [typescript-build-linker.ts:118](https://github.com/typescript-tools/typescript-build-linker/blob/a5b6d3b/src/typescript-build-linker.ts#L118)*
 
 ___
 <a id="packagedirectories"></a>
@@ -98,7 +98,7 @@ ___
         packageJsons,
         map(path.dirname))
 
-*Defined in [typescript-build-linker.ts:86](https://github.com/typescript-tools/typescript-build-linker/blob/81e94e4/src/typescript-build-linker.ts#L86)*
+*Defined in [typescript-build-linker.ts:87](https://github.com/typescript-tools/typescript-build-linker/blob/a5b6d3b/src/typescript-build-linker.ts#L87)*
 
 ___
 <a id="packagejsons"></a>
@@ -116,7 +116,7 @@ ___
             filter(filename => !filename.includes('node_modules')),
             filter(filename => filename.includes('package.json'))))
 
-*Defined in [typescript-build-linker.ts:74](https://github.com/typescript-tools/typescript-build-linker/blob/81e94e4/src/typescript-build-linker.ts#L74)*
+*Defined in [typescript-build-linker.ts:75](https://github.com/typescript-tools/typescript-build-linker/blob/a5b6d3b/src/typescript-build-linker.ts#L75)*
 
 ___
 <a id="readjson"></a>
@@ -131,7 +131,7 @@ ___
             fs.readFileSync,
             JSON.parse.bind(null)))
 
-*Defined in [typescript-build-linker.ts:65](https://github.com/typescript-tools/typescript-build-linker/blob/81e94e4/src/typescript-build-linker.ts#L65)*
+*Defined in [typescript-build-linker.ts:66](https://github.com/typescript-tools/typescript-build-linker/blob/a5b6d3b/src/typescript-build-linker.ts#L66)*
 
 ___
 
@@ -143,7 +143,7 @@ ___
 
 ▸ **internalPackageDependencies**(globs: *`Glob`[]*): `File`[]
 
-*Defined in [typescript-build-linker.ts:123](https://github.com/typescript-tools/typescript-build-linker/blob/81e94e4/src/typescript-build-linker.ts#L123)*
+*Defined in [typescript-build-linker.ts:124](https://github.com/typescript-tools/typescript-build-linker/blob/a5b6d3b/src/typescript-build-linker.ts#L124)*
 
 **Parameters:**
 
@@ -160,7 +160,7 @@ ___
 
 ▸ **internalPackagePath**(glob: *`Glob`[]*): `(Anonymous function)`
 
-*Defined in [typescript-build-linker.ts:137](https://github.com/typescript-tools/typescript-build-linker/blob/81e94e4/src/typescript-build-linker.ts#L137)*
+*Defined in [typescript-build-linker.ts:138](https://github.com/typescript-tools/typescript-build-linker/blob/a5b6d3b/src/typescript-build-linker.ts#L138)*
 
 **Parameters:**
 
@@ -177,7 +177,7 @@ ___
 
 ▸ **toPackageReferences**(__namedParameters: *[`string`, `Array`]*): (`string` \| `object`)[]
 
-*Defined in [typescript-build-linker.ts:144](https://github.com/typescript-tools/typescript-build-linker/blob/81e94e4/src/typescript-build-linker.ts#L144)*
+*Defined in [typescript-build-linker.ts:145](https://github.com/typescript-tools/typescript-build-linker/blob/a5b6d3b/src/typescript-build-linker.ts#L145)*
 
 **Parameters:**
 
@@ -194,7 +194,7 @@ ___
 
 ▸ **toParentReferences**(packages: *`File`[]*): `(Anonymous function)`
 
-*Defined in [typescript-build-linker.ts:222](https://github.com/typescript-tools/typescript-build-linker/blob/81e94e4/src/typescript-build-linker.ts#L222)*
+*Defined in [typescript-build-linker.ts:230](https://github.com/typescript-tools/typescript-build-linker/blob/a5b6d3b/src/typescript-build-linker.ts#L230)*
 
 **Parameters:**
 
@@ -211,7 +211,7 @@ ___
 
 ▸ **writePackageReferences**(dryRun: *`boolean`*): `any`
 
-*Defined in [typescript-build-linker.ts:183](https://github.com/typescript-tools/typescript-build-linker/blob/81e94e4/src/typescript-build-linker.ts#L183)*
+*Defined in [typescript-build-linker.ts:191](https://github.com/typescript-tools/typescript-build-linker/blob/a5b6d3b/src/typescript-build-linker.ts#L191)*
 
 **Parameters:**
 
@@ -228,7 +228,7 @@ ___
 
 ▸ **writeParentReferences**(dryRun: *`boolean`*): `(Anonymous function)`
 
-*Defined in [typescript-build-linker.ts:232](https://github.com/typescript-tools/typescript-build-linker/blob/81e94e4/src/typescript-build-linker.ts#L232)*
+*Defined in [typescript-build-linker.ts:240](https://github.com/typescript-tools/typescript-build-linker/blob/a5b6d3b/src/typescript-build-linker.ts#L240)*
 
 **Parameters:**
 

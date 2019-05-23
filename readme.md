@@ -48,6 +48,9 @@ Example `package.json` in monorepo root:
 }
 ```
 
+**Note**: `tsl` will not write to a file that requires no updates, so
+`tsc` will not re-compile packages unnecessarily.
+
 ## Related
 
 - [lerna](https://github.com/lerna/lerna)

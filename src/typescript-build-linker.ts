@@ -158,6 +158,7 @@ export const toPackageReferences = ([pkg, references]: [File, File[]]) =>
 const tsconfigParse =
     compose(
         id,  // DISCUSS: is this necessary?
+        traceDebug('reading file'),
         fs.readFileSync,
         stringify,
         (contents: string) => tsconfig.parse(contents, ''))

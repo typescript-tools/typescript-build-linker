@@ -51,7 +51,7 @@ export const join = (prefix: string) => (suffix: string): string =>
 
 // flatten :: [[a]] -> [a]
 export const flatten = <T = any>(array: T[][]): T[] =>
-    array.flat()
+    ([] as T[]).concat(...array)
 
 // uniquify :: [a] -> [a]
 export const uniquify = <T = any>(array: T[]): T[] =>

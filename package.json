@@ -1,6 +1,6 @@
 {
   "name": "@typescript-tools/typescript-build-linker",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Link together packages in a mono-repo",
   "main": "dist/src/typescript-build-linker.js",
   "types": "dist/src/typescript-build-linker.d.ts",
